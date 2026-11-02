@@ -20,7 +20,9 @@ HAN = r"[一-鿿]"
 BAN = ["首先", "其次", "综上所述", "值得注意的是", "不难发现", "总而言之", "说白了", "意味着什么",
        "本质上", "换句话说", "不可否认", "赋能", "底层逻辑", "闭环", "重塑", "让我们深入", "深入探讨",
        "在当今", "随着技术的", "令人发指", "历史不会重复", "总会押韵", "精妙", "划时代", "一句话讲清楚",
-       "生态", "惊喜", "至关重要", "无缝", "拭目以待", "不言而喻", "毋庸置疑"]
+       "生态", "惊喜", "至关重要", "无缝", "拭目以待", "不言而喻", "毋庸置疑", "重新定义"]
+# 2026-11-02 Blake 创作硬要求：AI 套话句式（不是而是、赋能已在上面）
+CLICHE = [(r"开启[^，。！？\n]{0,12}新(时代|纪元|篇章|征程)", "「开启新时代」一类口号")]
 # 软信号：出现要回看，有实际含义可以留
 SOFT = {
     "这件事": "常可删掉，直接说动作",
@@ -105,6 +107,14 @@ def main():
         if re.search(r"\d,\d{3}", t): E("数字千分位逗号，写 10 万或 100000")
         for w in BAN:
             if w in t: E(f"禁用词「{w}」")
+        for p, why in CLICHE:
+            if re.search(p, t): E(f"{why}，写具体发生了什么")
+        if re.search(r"从[^，。！？、\s]{1,8}到[^，。！？、\s]{1,8}", t):
+            W("「从 A 到 B」句式，当口号用要改；真实的时间、地点、数量范围可以留")
+        cl = [c.strip() for c in re.split(r"[，。；！？]", t) if len(c.strip()) >= 4]
+        for i in range(len(cl) - 2):
+            if cl[i][:2] == cl[i + 1][:2] == cl[i + 2][:2]:
+                W(f"排比（连续三句以「{cl[i][:2]}」开头），拆掉一两句或换说法"); break
         for p in SELF_COMMENT:
             if re.search(p, t): E("作者自我点评句（替读者打分或预告下一句），删掉；要留判断就写成具体事实")
         if re.search(r"长出(来|了)", t) and not re.search(r"(头发|牙|叶|芽|草|肉|毛|痘|皮)", t):
@@ -126,6 +136,18 @@ def main():
                 W("数字写阿拉伯数字")
         if a.mode == "subtitle" and re.search(r"[，。；：！？、,.;:!?]", t):
             E("字幕不放标点")
+
+    lines = [l.strip().lstrip("#>-*0123456789. ") for l in text.split("\n")]
+    lines = [l for l in lines if len(re.findall(HAN, l)) >= 4]
+    for i in range(len(lines) - 2):
+        if lines[i][:2] == lines[i + 1][:2] == lines[i + 2][:2]:
+            warn.append(f"连续三行以「{lines[i][:2]}」开头，像排比或口号，拆开写：{lines[i][:20]}"); break
+    paras = [len(re.findall(HAN, p)) for p in re.split(r"\n\s*\n", text)]
+    paras = [n for n in paras if n >= 30]
+    if len(paras) >= 5:
+        avg = sum(paras) / len(paras)
+        if (sum((n - avg) ** 2 for n in paras) / len(paras)) ** 0.5 / avg < 0.15:
+            warn.append(f"{len(paras)} 段长度几乎一样（平均 {avg:.0f} 字），段落过于工整，长短错开")
 
     body = re.sub(r"\s", "", text)
     if len(re.findall(r"首先|第一[，、]|先说第一个", body)) and len(re.findall(r"第二[，、]|再说第二个|其次", body)) >= 1 \
