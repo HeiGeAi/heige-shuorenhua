@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 def protected_parts(text):
+    text = text.lstrip("\ufeff")
     frontmatter = re.match(r"\A---\n.*?\n---\n", text, re.S)
     return {
         "frontmatter": frontmatter.group(0) if frontmatter else None,
