@@ -51,13 +51,14 @@ TTS_BAD = [("秒", "口播里不用「秒」字"), ("划", "「划」会被念�
 
 
 def strip_protected(text):
+    text = text.lstrip("\ufeff")
     text = re.sub(r"\A---\n.*?\n---\n", lambda m: "\n" * m.group(0).count("\n"), text, flags=re.S)
     text = re.sub(r"^```.*?^```[ \t]*$", lambda m: "\n" * m.group(0).count("\n"), text, flags=re.S | re.M)
     text = re.sub(r"`[^`\n]+`", " ", text)
-    text = re.sub(r"<[^>\n]+>", "", text)
-    text = re.sub(r"https?://\S+", " ", text)
+    text = re.sub(r"<(?:https?://[^>\s]+|[A-Za-z/!][^>\n]*)>", "", text)
     text = re.sub(r"\]\([^)\n]*\)", "]", text)
-    text = re.sub(r"(~|/Users)/[^\s，。；：）」]+", " ", text)
+    text = re.sub(r"https?://[^\s<>\"'()\[\]`\u2000-\u206f\u3000-\u303f\uff00-\uffef\u4e00-\u9fff]+", " ", text)
+    text = re.sub(r"(~|/Users)/[^\s，。；：、！？）」》】()\"'`]+", " ", text)
     return text
 
 
@@ -72,7 +73,11 @@ SELF_COMMENT = [
 
 
 def load(path):
-    raw = sys.stdin.read() if path == "-" else open(path, encoding="utf-8").read()
+    if path == "-":
+        raw = sys.stdin.read()
+    else:
+        with open(path, encoding="utf-8-sig") as f:
+            raw = f.read()
     if path.endswith(".json"):
         out = []
         def walk(x):
